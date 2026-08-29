@@ -95,13 +95,25 @@ req curl
 req zstdcat
 req zstd
 req make
-req clang
-req ld.lld
-req llvm-objcopy
 req patch
 req depmod
 req modprobe
 req modinfo
+
+# External modules must use the compiler family that built the running
+# kernel. A GCC-built Arch kernel enables GCC-only x86 flags which clang
+# correctly rejects, while a clang-built kernel needs LLVM's matching tools.
+MAKEVARS=()
+if distro_kernel_config_has CONFIG_CC_IS_CLANG=y "$KVER"; then
+    req clang
+    req ld.lld
+    req llvm-objcopy
+    MAKEVARS=(LLVM=1 LLVM_IAS=1)
+    TOOLCHAIN="LLVM"
+else
+    req gcc
+    TOOLCHAIN="GCC"
+fi
 
 echo "[*] kernel  = ${KVER}"
 echo "[*] target  = ${KO_OVERLAY}"
@@ -279,8 +291,8 @@ for f in "${WORK}/intel/common"/*; do
     install -m 0644 "$f" "${BUILD_DIR}/sound/soc/intel/common/$(basename "$f")"
 done
 
-echo "[*] building snd-sof.ko (LLVM toolchain)"
-( cd "$BUILD_DIR" && make LLVM=1 LLVM_IAS=1 \
+echo "[*] building snd-sof.ko (${TOOLCHAIN} toolchain)"
+( cd "$BUILD_DIR" && make "${MAKEVARS[@]}" \
     M=sound/soc/sof modules ) 2>&1 | tail -12
 
 BUILT_KO="${BUILD_DIR}/sound/soc/sof/snd-sof.ko"

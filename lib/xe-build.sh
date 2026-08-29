@@ -243,11 +243,27 @@ xe_build_install() {
     distro_kernel_config_cat "$KVER" > .config
 
     # vermagic must come out identical or the module will not load. On
-    # Arch-like trees the release suffix lives in these two files.
+    # Arch-like trees the release suffix normally lives in localversion.*.
+    # Some Arch packages, however, install only the pkgrel part (for example
+    # "-2") in the headers while the running release also has a package-name
+    # prefix (for example "-arch1-2"). Preserve the packaged files and derive
+    # only the missing prefix from KVER.
+    rm -f localversion.00-local localversion.90-local
     if [[ -r "${MODDIR}/build/localversion.10-pkgrel" ]]; then
         cp "${MODDIR}/build/"localversion.* .
+        local expected_suffix packaged_suffix missing_prefix
+        expected_suffix="${KVER#"${KBASE}"}"
+        packaged_suffix=$(cat localversion.* 2>/dev/null || true)
+        if [[ "$expected_suffix" != "$packaged_suffix" ]]; then
+            if [[ -n "$packaged_suffix" && "$expected_suffix" == *"$packaged_suffix" ]]; then
+                missing_prefix="${expected_suffix%"${packaged_suffix}"}"
+            else
+                missing_prefix="$expected_suffix"
+            fi
+            printf '%s\n' "$missing_prefix" > localversion.00-local
+        fi
     else
-        printf '%s\n' "-${KVER#"${KBASE}"}" | sed 's/^--/-/' > localversion.90-local
+        printf '%s\n' "-${KVER#"${KBASE}"}" | sed 's/^--/-/' > localversion.00-local
     fi
 
     # The build has no access to the distro signing key. Signing is off anyway

@@ -130,7 +130,7 @@ xe_build_install() {
     else
         NEED=(gcc)
     fi
-    NEED+=(make bc flex bison zstd curl tar depmod patch)
+    NEED+=(make bc flex bison zstd curl tar depmod patch objcopy)
     for t in "${NEED[@]}"; do
         command -v "$t" >/dev/null || _xe_die "missing required tool: $t"
     done
@@ -283,12 +283,13 @@ xe_build_install() {
     [[ -f "$KO" ]] || _xe_die "build produced no xe.ko"
 
     # --- finish the module the way modules_install would ----------------------
-    # BTF first, then strip: .BTF is not a .debug section and survives it.
-    if command -v pahole >/dev/null && [[ -r /sys/kernel/btf/vmlinux ]]; then
-        _xe_log "generating module BTF against the running kernel's base BTF"
-        LLVM_OBJCOPY=llvm-objcopy pahole -J --btf_base /sys/kernel/btf/vmlinux "$KO" \
-            || _xe_warn "BTF generation failed, continuing without it"
-    fi
+    # This standalone build has no matching distro vmlinux. Do not attach
+    # split BTF from /sys/kernel/btf/vmlinux: during upgrades it belongs to
+    # the old running kernel, and reused objects may retain that old BTF.
+    # BTF is optional for this display module; discard stale metadata too.
+    _xe_log "removing unverified standalone module BTF"
+    objcopy --remove-section=.BTF --remove-section=.BTF.ext \
+        --remove-section=.BTF.base "$KO"
 
     _xe_log "stripping and compressing"
     if command -v llvm-strip >/dev/null; then llvm-strip --strip-debug "$KO"

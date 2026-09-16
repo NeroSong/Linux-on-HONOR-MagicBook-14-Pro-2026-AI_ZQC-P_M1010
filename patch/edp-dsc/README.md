@@ -1,5 +1,12 @@
 # The panel is driven at 6 bits per colour
 
+> Local Omarchy note (2026-09-16): install.sh now routes Omarchy to an
+> exact-source DSC-only builder. A source/configuration mismatch or a native
+> baseline code mismatch refuses installation; there is no vanilla fallback.
+> The tested 7.2.5-3 build enables DSC and 8 bpc without dithering. External
+> display reconnection after sleep still fails; its cause is not established.
+> The local patch restores the complete DSC state and FEC flag on fallback.
+
 | | |
 |---|---|
 | Symptom | banding and dither noise on flat areas and gradients; the pipe reports `bpp=18, dither=yes` on a 10-bit OLED |
@@ -179,9 +186,9 @@ went into the module is recorded in `/var/lib/honor/xe-module.stamp`.
 
 ```sh
 sudo grep -E 'pipe src=' /sys/kernel/debug/dri/*/i915_display_info
-    expect: dither=no, bpp=30 on this panel (10 bits per colour).
-    bpp=24 means the DSC pass was handed the reduced depth instead of the
-    baseline, which is the bug described above.
+    expect: dither=no, bpp=24 or 30, depending on the requested depth.
+    The local Omarchy desktop uses XRGB8888 and has been measured at 24 bpp.
+    24 bpp alone is not evidence that the original-baseline restoration failed.
 
 sudo grep DSC_Enabled /sys/kernel/debug/dri/*/eDP-1/i915_dsc_fec_support
     expect: yes

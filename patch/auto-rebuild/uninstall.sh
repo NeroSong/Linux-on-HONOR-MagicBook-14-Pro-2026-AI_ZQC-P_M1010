@@ -12,7 +12,9 @@ u_log "Removing the auto-rebuild hooks"
 # Both styles, because a machine may have been moved between distributions:
 # pacman hooks on Arch, /etc/kernel/postinst.d on Debian and Ubuntu. Removing
 # one that was never installed is not an error.
-u_rm /etc/pacman.d/hooks/95-honor-kernel-modules.hook \
+u_rm /etc/pacman.d/hooks/85-honor-edp-dsc.hook \
+     /usr/local/lib/honor/dsc-update.sh \
+     /etc/pacman.d/hooks/95-honor-kernel-modules.hook \
      /etc/pacman.d/hooks/96-honor-libfprint.hook \
      /etc/kernel/postinst.d/95-honor-kernel-modules \
      /usr/local/lib/honor/rebuild.sh \

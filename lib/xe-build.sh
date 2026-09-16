@@ -117,6 +117,15 @@ xe_build_install() {
 
     [[ -d "$MODDIR" ]] || _xe_die "no module tree for kernel $KVER"
 
+    # Omarchy must never fall through to the vanilla builder. Its DSC-only
+    # path proves an exact native baseline before it can install an overlay.
+    if [[ "$KVER" == *-omarchy* ]]; then
+        [[ "$caller" == edp-dsc && "$(xe_wanted_fixes)" == edp-dsc ]] \
+            || _xe_die "Omarchy maintenance supports only the reviewed edp-dsc patch set."
+        KVER="$KVER" REGEN="$REGEN" bash "$XE_ROOT/patch/edp-dsc/install-omarchy.sh"
+        return $?
+    fi
+
     # --- toolchain ------------------------------------------------------------
     # The module has to be built with the same compiler family as the kernel,
     # otherwise the LTO objects do not match.
@@ -253,7 +262,11 @@ xe_build_install() {
         cp "${MODDIR}/build/"localversion.* .
         local expected_suffix packaged_suffix missing_prefix
         expected_suffix="${KVER#"${KBASE}"}"
-        packaged_suffix=$(cat localversion.* 2>/dev/null || true)
+        # localversion fragments are concatenated by kbuild, not joined with
+        # newlines.  Arch-family headers commonly split a suffix such as
+        # "-3-omarchy" across localversion.10-pkgrel and
+        # localversion.20-pkgname, so preserve that exact semantics here.
+        packaged_suffix=$(cat localversion.* 2>/dev/null | tr -d '\n')
         if [[ "$expected_suffix" != "$packaged_suffix" ]]; then
             if [[ -n "$packaged_suffix" && "$expected_suffix" == *"$packaged_suffix" ]]; then
                 missing_prefix="${expected_suffix%"${packaged_suffix}"}"

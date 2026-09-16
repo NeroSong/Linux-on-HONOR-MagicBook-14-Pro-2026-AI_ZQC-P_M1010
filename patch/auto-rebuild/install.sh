@@ -54,6 +54,12 @@ esac
 
 [[ -d "${REPO}/patch" ]] || die "cannot locate the repository from ${SCRIPT_DIR}"
 
+# Omarchy uses the DSC-only, synchronous exact-source path. Do not reactivate
+# the old all-module background worker on this machine.
+if [[ "$HOOK_STYLE" == arch && "$(uname -r)" == *-omarchy ]]; then
+    exec bash "$SCRIPT_DIR/install-omarchy-dsc-hook.sh"
+fi
+
 # The fingerprint rebuild has to run makepkg, which refuses to run as root.
 BUILD_USER="${SUDO_USER:-$(logname 2>/dev/null || true)}"
 if [[ -z "$BUILD_USER" || "$BUILD_USER" == "root" ]]; then

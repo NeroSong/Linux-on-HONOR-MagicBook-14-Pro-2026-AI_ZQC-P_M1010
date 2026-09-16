@@ -72,15 +72,31 @@ and with the value it is missing rather than silently:
 | Board | Fixes |
 |---|---|
 | `ZQC-P` `M1010` | **acpi-override** · **psr-band** · **oled-backlight** · **cdclk-ptl** · **edp-dsc** · **headset-mic** · **sof-audio** · **micmute** · **touchpad-edge** · **fan** · **fingerprint** · **battery** · **hotkeys** · **hotkey-actions** · **auto-rebuild** |
-| `ZQC-P` `M1050` | **acpi-override** · **psr-band** · **oled-backlight** · **cdclk-ptl** · **edp-dsc** · **headset-mic** · **sof-audio** · **micmute** · **touchpad-edge** · **fan** · **fingerprint** · **battery** · **hotkeys** · **hotkey-actions** · **auto-rebuild** |
+| `ZQC-P` `M1050` | **acpi-override** · **psr-band** · **oled-backlight** · **edp-dsc** · **micmute** · **touchpad-edge** · **fan** · **fingerprint** · **battery** · **hotkeys** · **hotkey-actions** · **auto-rebuild** |
 
 A board below `verified` gets only the tier A subset, and `apply_patch.sh`
 refuses to start on one without `ALLOW_UNVERIFIED=1`. Every other board revision
 has no fixes at all, which is deliberate and is explained with the status words
 in [docs/hardware/README.md](docs/hardware/README.md#what-the-status-words-mean).
 
-The two rows above being equal is not the same as the evidence behind them being
-equal. What each rests on, fix by fix, is on
+This local fork omits `cdclk-ptl` from M1050: this machine's Omarchy
+7.2.5-3 kernel already includes the CDCLK fix. Do not rebuild a standalone xe
+module for that fix. This is a local Omarchy policy, not a claim that every
+M1050 kernel includes it. The optimized `edp-dsc` patch has passed local boot/display validation;
+Omarchy now uses a DSC-only synchronous update hook with exact-source and
+native-baseline checks. The old all-module background hook stays disabled.
+
+M1050 also omits `headset-mic` and `sof-audio` at the local user's request.
+Both installed kernels use packaged audio modules. The headset fix targets
+the 3.5 mm microphone, which Bluetooth playback and speaker tests do not
+validate; the current Omarchy kernel already includes the SOF fix.
+The profile gate prevents either installer from rebuilding these overlays
+for this machine, including when called by the automatic rebuild script.
+
+The local Omarchy changes, validation and remaining limitations are recorded in
+[docs/OMARCHY-DSC.md](docs/OMARCHY-DSC.md).
+
+The evidence behind each board's fixes is on
 [the ZQC-P page](docs/hardware/zqc-p.md#what-the-verified-on-this-section-rests-on).
 
 The table is generated from the profiles, and `tools/selftest.sh` fails if it

@@ -59,21 +59,27 @@ the machine above, where the difference is 8 bits per colour against 10.
 So the baseline is restored before the DSC pass.
 
 Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
+Local adaptation for Omarchy 7.2.5-3: restore the complete DSC state and
+FEC flag on preferred-DSC failure. intel_dp_dsc_reset_config() alone does
+not clear compression_enabled_on_link after a late dotclock rejection.
+
 ---
 --- a/drivers/gpu/drm/i915/display/intel_dp.c
 +++ b/drivers/gpu/drm/i915/display/intel_dp.c
-@@ -2858,7 +2858,9 @@
+@@ -2936,7 +2936,11 @@
  		&pipe_config->hw.adjusted_mode;
  	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
  	struct link_config_limits limits;
 -	bool dsc_needed, joiner_needs_dsc;
 +	bool dsc_needed, joiner_needs_dsc, dsc_preferred = false;
 +	int uncompressed_bpp = 0, uncompressed_clock = 0, uncompressed_lanes = 0;
++	typeof(pipe_config->dsc) uncompressed_dsc = {};
++	bool uncompressed_fec_enable = false;
 +	int entry_bpp = pipe_config->pipe_bpp;
  	int ret = 0;
  
  	intel_dp_dsc_reset_config(pipe_config);
-@@ -2893,6 +2895,31 @@
+@@ -2971,6 +2975,33 @@
  					   0,
  					   num_joined_pipes))
  			dsc_needed = true;
@@ -97,6 +103,8 @@ Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
 +			 * where a link that cannot carry 8 bpc is far more
 +			 * often a cable than a design.
 +			 */
++			uncompressed_dsc = pipe_config->dsc;
++			uncompressed_fec_enable = pipe_config->fec_enable;
 +			uncompressed_bpp = pipe_config->pipe_bpp;
 +			uncompressed_clock = pipe_config->port_clock;
 +			uncompressed_lanes = pipe_config->lane_count;
@@ -105,7 +113,7 @@ Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
  	}
  
  	if (dsc_needed && !intel_dp_supports_dsc(intel_dp, connector, pipe_config)) {
-@@ -2900,33 +2927,78 @@
+@@ -2978,33 +3009,80 @@
  		return -EINVAL;
  	}
  
@@ -118,9 +126,7 @@ Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
 +			    "Try DSC (fallback=%s, joiner=%s, force=%s, preferred=%s)\n",
  			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 -			    str_yes_no(intel_dp->force_dsc_en));
-+			    str_yes_no(intel_dp->force_dsc_en),
-+			    str_yes_no(dsc_preferred));
- 
+-
 -		if (!intel_dp_compute_config_limits(intel_dp, conn_state, pipe_config,
 -						    respect_downstream_limits,
 -						    true,
@@ -131,9 +137,20 @@ Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
 -						  conn_state, &limits, 64);
 -		if (ret < 0)
 -			return ret;
-+		ret = -EINVAL;
- 
+-
 -		dsc_slice_count = intel_dsc_line_slice_count(&pipe_config->dsc.slice_config);
+-
+-		if (!intel_dp_dotclk_valid(display,
+-					   adjusted_mode->crtc_clock,
+-					   adjusted_mode->crtc_htotal,
+-					   dsc_slice_count,
+-					   num_joined_pipes))
+-			return -EINVAL;
++			    str_yes_no(intel_dp->force_dsc_en),
++			    str_yes_no(dsc_preferred));
++
++		ret = -EINVAL;
++
 +		/*
 +		 * intel_dp_compute_config_limits() derives the DSC input depth
 +		 * from crtc_state->pipe_bpp:
@@ -152,13 +169,7 @@ Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
 +		 */
 +		if (dsc_preferred)
 +			pipe_config->pipe_bpp = entry_bpp;
- 
--		if (!intel_dp_dotclk_valid(display,
--					   adjusted_mode->crtc_clock,
--					   adjusted_mode->crtc_htotal,
--					   dsc_slice_count,
--					   num_joined_pipes))
--			return -EINVAL;
++
 +		if (intel_dp_compute_config_limits(intel_dp, conn_state, pipe_config,
 +						   respect_downstream_limits,
 +						   true,
@@ -196,7 +207,9 @@ Signed-off-by: Ruslan Shevchenko <rshevchenko@neoflex.ru>
 +				    "DSC preferred but not usable, keeping %d bpp uncompressed\n",
 +				    uncompressed_bpp);
 +
-+			intel_dp_dsc_reset_config(pipe_config);
++			/* Also restore compression_enabled_on_link after a late failure. */
++			pipe_config->dsc = uncompressed_dsc;
++			pipe_config->fec_enable = uncompressed_fec_enable;
 +			pipe_config->pipe_bpp = uncompressed_bpp;
 +			pipe_config->port_clock = uncompressed_clock;
 +			pipe_config->lane_count = uncompressed_lanes;

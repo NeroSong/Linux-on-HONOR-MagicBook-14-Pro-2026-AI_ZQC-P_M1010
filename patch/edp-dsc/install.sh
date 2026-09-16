@@ -74,7 +74,7 @@ cat <<EOT
 Reboot, then check:
 
     sudo grep -E 'pipe src=' /sys/kernel/debug/dri/*/i915_display_info
-        expect: dither=no, bpp=30 on a 10-bit panel
+        expect: DSC enabled, dither=no, bpp=24 or 30 depending on the requested depth
 
     sudo grep DSC_Enabled /sys/kernel/debug/dri/*/eDP-1/i915_dsc_fec_support
         expect: yes

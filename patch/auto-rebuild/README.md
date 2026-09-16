@@ -1,5 +1,34 @@
 # Keeping the fixes applied across package updates
 
+## Local Omarchy DSC maintenance
+
+Omarchy uses `85-honor-edp-dsc.hook` synchronously before the existing
+`90-mkinitcpio-install.hook`. Only edp-dsc is rebuilt. The old 95 all-module
+background hook stays disabled; audio and hotkey overlays are not enabled.
+Fingerprint and DKMS keep their separate maintenance paths.
+
+`tools/omarchy-xe-build.py` resolves the exact installed package recipe from
+the official repository, checks every source checksum, preserves the kernel
+configuration and compares native baseline executable sections and headers
+before adding DSC. Builds run as BUILD_USER. Missing sources, mismatched
+compilers/configuration, upstream changes or an inapplicable patch stop the
+build; the package manager continues to its ordinary initramfs hook. No
+unvalidated module is installed. Failures appear in the update output and
+`/var/log/honor-autorebuild.log`; they must not be mistaken for a DSC update.
+
+`DSC_CACHE` and optional `DSC_TOOLCHAIN` in `/etc/honor-autorebuild.conf`
+locate validated artifacts and local build dependencies. Cache identities
+include the exact native module, target vmlinux/config/symbols, patch and
+output hashes; modules are never reused across kernel versions. A same-version
+input change needs a fresh cache directory or manual review. The source
+resolver currently supports the reviewed stable-kernel PKGBUILD format and
+searches the latest 60 recipe changes; other formats fail closed.
+
+Direct installation regenerates the normal linux-omarchy image; a package
+update sets REGEN=0 because the following distro hook generates it. Neither
+path unloads the live driver or reboots the machine.
+
+
 | | |
 |---|---|
 | Problem | some fixes live inside files a package update replaces |

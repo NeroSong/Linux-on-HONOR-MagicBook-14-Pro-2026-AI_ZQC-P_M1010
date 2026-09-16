@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/modules/*/modules.builtin
+
+[Action]
+Description = Building and validating HONOR eDP DSC for the updated Omarchy kernel...
+When = PostTransaction
+Exec = /usr/local/lib/honor/dsc-update.sh
+NeedsTargets
